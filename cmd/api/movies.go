@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -43,7 +44,27 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	app.writeJSON(w, http.StatusCreated, envelope{"movie": input}, nil)
+	// Call the Insert() method on movies model, passing in a pointer
+	// to the validated movie struct. This will create a record in the
+	// database and update the movie struct with the system-generated
+	// information.
+	err = app.models.Movies.Insert(movie)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Add an HTTP header "Location" to let the client know which URL
+	// they can find the newly-created resource at.
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
+
+	// Write a JSON response with 201 Created status code, the movie
+	// data in the response body, and the location header.
+	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 // showMovieHandler for the "GET /v1/movies/:id" endpoint.
