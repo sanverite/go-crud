@@ -10,6 +10,7 @@ import (
 // the databse.
 var (
 	ErrRecordNotFound = errors.New("record not found")
+	ErrEditConflict   = errors.New("edit conflict")
 )
 
 // A Models struct which wraps all the other models.

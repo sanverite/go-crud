@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/sanverite/greenlight/internal/data"
 	"github.com/sanverite/greenlight/internal/validator"
@@ -117,6 +118,16 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// If the request contains a X-Expected-Version header, verify that
+	// the movie version in the database matches the expected version
+	// specified in the header.
+	if r.Header.Get("X-Expected-Version") != "" {
+		if strconv.FormatInt(int64(movie.Version), 32) != r.Header.Get("X-Expected.Version") {
+			app.editConflictResponse(w, r)
+			return
+		}
+	}
+
 	// Declare an input struct to hold the expected data from the client.
 	var input struct {
 		Title   *string       `json:"title"`
@@ -163,7 +174,13 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	// Pass the updated movie record to our new Update() method.
 	err = app.models.Movies.Update(movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
