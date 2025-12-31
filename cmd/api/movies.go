@@ -98,7 +98,7 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	// Extract the sort query string value, falling back to "id" if it is
 	// not provided by the client (which will imply a asc sort on movie ID).
 	input.Filters.Sort = app.readString(qs, "sort", "id")
-	input.Filters.SortSageList = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+	input.Filters.SortSafeList = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
 
 	// Check the Validator instance for any errors and use the failedValidationResponse()
 	// helper to send the client a response if necessary.
