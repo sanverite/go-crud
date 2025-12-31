@@ -68,6 +68,60 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// listMoviesHandler for the "GET /v1/movies" endpoint.
+func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Title  string
+		Genres []string
+		data.Filters
+	}
+
+	// Initialize a new Validator instance.
+	v := validator.New()
+
+	// Call the r.URL.Query() to get the url.Values map containing the
+	// query string data.
+	qs := r.URL.Query()
+
+	// Use the helpers to extract the title and genres query string values,
+	// falling back to defaults of an empty string and an empty slice
+	// respectively if they are not provided by the client.
+	input.Title = app.readString(qs, "title", "")
+	input.Genres = app.readCSV(qs, "genres", []string{})
+
+	// Get the page and page_size query string values as integers.
+	// Set the default values for page and page_size to 1 and 20
+	// respectively.
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	// Extract the sort query string value, falling back to "id" if it is
+	// not provided by the client (which will imply a asc sort on movie ID).
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Filters.SortSageList = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+
+	// Check the Validator instance for any errors and use the failedValidationResponse()
+	// helper to send the client a response if necessary.
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Call the GetAll() method to retrieve the movies, passing in the
+	// various filter parameters.
+	movies, err := app.models.Movies.GetAll(input.Title, input.Genres, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Send a JSON response containing the movie data.
+	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 // showMovieHandler for the "GET /v1/movies/:id" endpoint.
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
